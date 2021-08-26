@@ -47,13 +47,13 @@
     document.body.appendChild( img );
     */
 
-			const metadata = JSON.parse( fflate.strFromU8( zip[ 'metadata.json' ] ) );
+			const metadata = JSON.parse( fflate.strFromU8( zip[ 'Quill.json' ] ) );
 			/*
     const blob = new Blob( [ zip[ 'data.sketch' ].buffer ], { type: 'application/octet-stream' } );
     window.open( URL.createObjectURL( blob ) );
     */
 
-			const data = new DataView( zip[ 'data.sketch' ].buffer );
+			const data = new DataView( zip[ 'Quill.qbin' ].buffer );
 			const num_strokes = data.getInt32( 16, true );
 			const brushes = {};
 			let offset = 20;
@@ -455,6 +455,6 @@
 
 	}
 
-	THREE.TiltLoader = TiltLoader;
+	THREE.QuillLoader = QuillLoader;
 
 } )();
