@@ -41,18 +41,18 @@
 				document.body.appendChild(renderer.domElement);
 
 				const loader = new THREE.QuillLoader();
-				loader.load('./files/grass_00.quill', function(object) {
+				loader.load("./files/grass_00.quill", function(object) {
 					// console.log(object.children.length);
 					scene.add(object);
 					render();
 				});
 
 				const controls = new THREE.OrbitControls(camera, renderer.domElement);
-				controls.addEventListener('change', render);
+				controls.addEventListener("change", render);
 				controls.target.y = camera.position.y;
 				controls.update();
 
-				window.addEventListener('resize', onWindowResize);
+				window.addEventListener("resize", onWindowResize);
 			}
 
 			function onWindowResize() {
