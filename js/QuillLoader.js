@@ -12,9 +12,7 @@
 			loader.setWithCredentials(this.withCredentials);
 			loader.load(url, function (buffer) {
 				try {
-
 					onLoad(scope.parse(buffer));
-
 				} catch (e) {
 					if (onError) {
 						onError(e);
@@ -34,8 +32,7 @@
 			const data = new DataView(zip["Quill.qbin"].buffer);
 			
 			const children = metadata["Sequence"]["RootLayer"]["Implementation"]["Children"];
-			const strokes = [];
-			const scale = 10;
+			const brushes = {};
 
     		for (let i=0; i < children.length; i++) {
       			const childNode = children[i];
@@ -60,41 +57,56 @@
 					let offset = dataFileOffset + 4;
 
 					for (let k = 0; k < numNodeStrokes; k++) {
-					let positions = [];
-					let colors = [];
-					let widths = [];
-
-					offset += 36;
-
-					const numVertices = data.getInt32(offset, true);
-
-					offset += 4;
-
-					for (let l = 0; l < numVertices; l++) {
-						const x = data.getFloat32(offset + 0, true);
-						const y = data.getFloat32(offset + 4, true);
-						const z = data.getFloat32(offset + 8, true);
-						positions.push(new THREE.Vector3(x, y, z) * scale);
-
 						offset += 36;
+						
+						const numVertices = data.getInt32(offset, true);
+						console.log(numVertices);
 
-						const r = data.getFloat32(offset + 0, true) * 255;
-						const g = data.getFloat32(offset + 4, true) * 255;
-						const b = data.getFloat32(offset + 8, true) * 255;
-						const a = data.getFloat32(offset + 12, true) * 255;
-						colors.push(new THREE.Color(r, g, b, a));
-
-						offset += 16;
-
-						widths.push(data.getFloat32(offset + 0, true));
+						const positions = new Float32Array(numVertices * 3);
+						const colors = new Float32Array(numVertices * 4);
+						const widths = new Float32Array(numVertices);
 
 						offset += 4;
+
+						for (let l = 0, m = 0, n = 0; n < numVertices; l += 3, m += 4, n++) {
+							positions[l+0] = data.getFloat32(offset + 0, true); // x
+							positions[l+1] = data.getFloat32(offset + 4, true); // y
+							positions[l+2] = data.getFloat32(offset + 8, true); // z
+
+							offset += 36;
+
+							colors[m+0] = data.getFloat32(offset + 0, true); // r
+							colors[m+1] = data.getFloat32(offset + 4, true); // g
+							colors[m+2] = data.getFloat32(offset + 8, true); // b
+							colors[m+3] = data.getFloat32(offset + 12, true); // a
+
+							offset += 16;
+
+							widths[n] = data.getFloat32(offset + 0, true);
+
+							offset += 4;
+						}
+
+						const brush_size = parseInt(widths[widths.length/2]);
+						const colorIndex = parseInt(colors[colors.length/2]);
+						const brush_color = new THREE.Color(colors[colorIndex+0], colors[colorIndex+1], colors[colorIndex+2], colors[colorIndex+3]);
+						brushes[k] = [positions, brush_size, brush_color];
+
+						//strokes.add(new QuillStroke(parent, positions, widths, colors));
 					}
 
-					//strokes.add(new QuillStroke(parent, positions, widths, colors));
+					for (let k=0; k<brushes.length; k++) {
+						const geometry = new StrokeGeometry(brushes[k]);
+						const material = getMaterial();
+						group.add(new THREE.Mesh(geometry, material));
 					}
 				}
     		}
+
+			return group;
+		}
+
+	}
 
 			/*
 			const num_strokes = data.getInt32(16, true);
@@ -153,8 +165,6 @@
 
 			return group;
 		*/
-		}
-	}
 
 	class StrokeGeometry extends THREE.BufferGeometry {
 
@@ -165,8 +175,6 @@
 			const uvs = [];
 			const position = new THREE.Vector3();
 			const prevPosition = new THREE.Vector3();
-			const quaternion = new THREE.Quaternion();
-			const prevQuaternion = new THREE.Quaternion();
 			const vector1 = new THREE.Vector3();
 			const vector2 = new THREE.Vector3();
 			const vector3 = new THREE.Vector3();
@@ -175,26 +183,19 @@
 			for (const k in strokes) {
 				const stroke = strokes[k];
 				const positions = stroke[0];
-				const quaternions = stroke[1];
 				const size = stroke[2];
 				const color = stroke[3];
 				prevPosition.fromArray(positions, 0);
-				prevQuaternion.fromArray(quaternions, 0);
 
 				for (let i = 3, j = 4, l = positions.length; i < l; i += 3, j += 4) {
 					position.fromArray(positions, i);
-					quaternion.fromArray(quaternions, j);
 					vector1.set(- size, 0, 0);
-					vector1.applyQuaternion(quaternion);
 					vector1.add(position);
 					vector2.set(size, 0, 0);
-					vector2.applyQuaternion(quaternion);
 					vector2.add(position);
 					vector3.set(size, 0, 0);
-					vector3.applyQuaternion(prevQuaternion);
 					vector3.add(prevPosition);
 					vector4.set(- size, 0, 0);
-					vector4.applyQuaternion(prevQuaternion);
 					vector4.add(prevPosition);
 					vertices.push(vector1.x, vector1.y, - vector1.z);
 					vertices.push(vector2.x, vector2.y, - vector2.z);
@@ -203,7 +204,6 @@
 					vertices.push(vector3.x, vector3.y, - vector3.z);
 					vertices.push(vector4.x, vector4.y, - vector4.z);
 					prevPosition.copy(position);
-					prevQuaternion.copy(quaternion);
 					colors.push(...color);
 					colors.push(...color);
 					colors.push(...color);
